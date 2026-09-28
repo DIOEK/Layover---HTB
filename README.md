@@ -84,9 +84,19 @@ iw dev wlan3 set type monitor 2>/dev/null; ip link set wlan3 up; iw dev wlan3 se
 tshark -i wlan3 -a duration:120 -Y 'http.request.method=="POST"' -T fields -e ip.src -e http.request.full_uri -e urlencoded-form.key -e urlencoded-form.value 2>/dev/null
 ````
 
-The ouput are creds for the jenny user (jenny:Fl1ghtDeck2026!) we have login into the portal:
+The ouput are creds for the jenny user (jenny:Fl1ghtDeck2026!) we have login into the portal but this does notget us anythong very interesting:
 
 <img width="1002" height="713" alt="image" src="https://github.com/user-attachments/assets/1c5f5977-117c-4326-8127-3ac3f56a0a0e" />
+
+There is another login option at http://portal.international.htb/admin/login
+
+<img width="1026" height="742" alt="image" src="https://github.com/user-attachments/assets/e64ebfea-ec0e-43d8-9c42-9965c4f818c5" />
+
+Here we can login as jenny also:
+
+<img width="1027" height="741" alt="image" src="https://github.com/user-attachments/assets/a91ac8fc-5364-4c43-a333-22dae23e3737" />
+
+We found a targetable software Craft cms version solo 5.9.8
 
 
 
